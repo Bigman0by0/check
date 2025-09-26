@@ -1,5 +1,5 @@
 [package]
-name = "hello-solana"
+name = "hello_world"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,4 @@ edition = "2021"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-solana-program = "1.18.14"
+solana-program = "2.2.0"
