@@ -1,36 +1,62 @@
+// revoke_delegate.js
+// This script revokes any delegate for an SPL token account in a Solana wallet.
+// Usage: node revoke_delegate.js <TOKEN_MINT_ADDRESS>
+
 const { Connection, Keypair, clusterApiUrl, PublicKey } = require("@solana/web3.js");
 const { getOrCreateAssociatedTokenAccount, revoke } = require("@solana/spl-token");
 const fs = require("fs");
 
-// Load your private key (replace with your actual private key file)
-const secretKey = Uint8Array.from(JSON.parse(fs.readFileSync("your_wallet.json", "utf8")));
-const owner = Keypair.fromSecretKey(secretKey);
+// ====== CONFIGURATION ======
+// Change this to your actual private key JSON file (64 numbers array)
+const WALLET_FILE = "your_wallet.json";
+// Use "mainnet-beta" for real transactions; "devnet" or "testnet" for testing
+const NETWORK = "mainnet-beta";
 
-// Set up connection (use "mainnet-beta" for mainnet)
-const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
+// ====== SCRIPT START ======
+async function main() {
+  // Check for required argument
+  if (process.argv.length < 3) {
+    console.error("Usage: node revoke_delegate.js <TOKEN_MINT_ADDRESS>");
+    process.exit(1);
+  }
+  const MINT_ADDRESS = process.argv[2];
 
-// The mint address of the token you want to revoke delegate for (e.g., SOL wrapped token, or other SPL token)
-const MINT_ADDRESS = "So11111111111111111111111111111111111111112"; // e.g., USDC's mint, or WSOL mint
-
-(async () => {
+  // Load wallet
+  let secretKey;
   try {
-    // Get your associated token account for this mint
-    const ata = await getOrCreateAssociatedTokenAccount(
+    secretKey = Uint8Array.from(JSON.parse(fs.readFileSync(WALLET_FILE)));
+  } catch (e) {
+    console.error("Error reading wallet file:", e.message);
+    process.exit(1);
+  }
+  const owner = Keypair.fromSecretKey(secretKey);
+
+  // Connect to Solana
+  const connection = new Connection(clusterApiUrl(NETWORK), "confirmed");
+
+  try {
+    // Get or create associated token account
+    const ataInfo = await getOrCreateAssociatedTokenAccount(
       connection,
       owner,
       new PublicKey(MINT_ADDRESS),
       owner.publicKey
     );
-    // Revoke delegate (removes any delegate for this token account)
-    const tx = await revoke(
+
+    // Revoke any delegate
+    const sig = await revoke(
       connection,
-      owner,            // payer
-      ata.address,      // token account
-      owner.publicKey   // owner
+      owner,                // payer
+      ataInfo.address,      // token account
+      owner.publicKey       // owner
     );
-    console.log("Revoke transaction signature:", tx);
-    console.log("Delegate (if any) is now revoked.");
+
+    console.log("✅ Delegate revoked (if any existed). Transaction signature:");
+    console.log(sig);
   } catch (err) {
-    console.error("Error revoking delegate:", err);
+    console.error("❌ Error during revocation:", err.message);
+    process.exit(1);
   }
-})();
+}
+
+main();
